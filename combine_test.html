@@ -17,7 +17,6 @@
             "tag3": ["value1", "vlue2", "value3"]
         };
         var out = [];
-        var preTag = '';
         var preLength = 0;
         _.each(list, function (val, tag) {
             // console.log(tag);
@@ -27,7 +26,7 @@
                 if(preLength === 0){
                     out.push(tempobj);
                 } else {
-                    if(preTag !== tag){
+                    if(preLength === out.length){
                         _.each(out, function(ooo){
                             ooo[tag] = item;
                         });
@@ -39,8 +38,6 @@
                         });
                     }
                 }
-                preTag = tag;
-                // console.log(_.map(out, function(xxx){return _.clone(xxx)}));
             });
             preLength = out.length;
         });
