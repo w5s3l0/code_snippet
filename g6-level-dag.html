@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+
+<head></head>
+
+<body>
+    <div id="mountNode" style="width: 1000px; height: 600px; background: #f2f2f2;"></div>
+
+    <script src="https://gw.alipayobjects.com/os/antv/pkg/_antv.g6-3.0.0/build/g6.js"></script>
+    <script>
+        var data = [
+            {
+                id: '1',
+                name: '节点1',
+                parent_id: null,
+                t_level: 'level1',
+                // t_type: 'SERVICE'
+            }, {
+                id: '2',
+                name: '节点2',
+                parent_id: '1',
+                t_level: 'level1',
+                // t_type: 'SERVICE'
+            }, {
+                id: '3',
+                name: '节点3',
+                parent_id: '1',
+                t_level: 'level2',
+                // t_type: 'COMPONENT'
+            }, {
+                id: '3',
+                name: '节点3',
+                parent_id: '2',
+                t_level: 'level2',
+                // t_type: 'COMPONENT'
+            }, {
+                id: '5',
+                name: '节点5',
+                parent_id: '2',
+                t_level: 'level2',
+                // t_type: 'COMPONENT'
+            }, {
+                id: '5',
+                name: '节点5',
+                parent_id: '1',
+                t_level: 'level2',
+                // t_type: 'COMPONENT'
+            }, {
+                id: '4',
+                name: '节点4',
+                parent_id: '1',
+                t_level: 'level3',
+                // t_type: 'COMPONENT'
+            }, {
+                id: '6',
+                name: '节点6',
+                parent_id: '2',
+                t_level: 'level2',
+                // t_type: 'COMPONENT'
+            }, {
+                id: '7',
+                name: '节点7',
+                parent_id: '1',
+                t_level: 'level2',
+                // t_type: 'COMPONENT'
+            }
+        ];
+        var nodeWidth = 60;
+        var nodeHeight = 50;
+        var pageGap = 0;
+        var itemGap = 80;
+        // 根据节点id查找节点
+        function findNode(data, id) {
+            var node = null;
+            if (id) {
+                for (var i = 0; i < data.length; i++) {
+                    var tempNode = data[i];
+                    if (tempNode.id === id) {
+                        node = tempNode;
+                        break;
+                    }
+                }
+            }
+
+            return node;
+        }
+        function getLevelNum(str) {
+            return Number(str.replace('level', ''));
+        }
+        // 合并重复节点
+        function buildNodes(data) {
+            var tempNodes = [];
+            var tempEdges = [];
+            for (var i = 0; i < data.length; i++) {
+                var node = data[i];
+                node.level = getLevelNum(node.t_level);  // 生成节点数字level
+                // 初始同级权重
+                node.weight = 0;
+                node.space = 0;
+                node.shape = 'circle';
+                node.label = node.name;
+                node.y = pageGap + nodeHeight + itemGap * node.level; // 计算规则可以变化，第一轮即可确定y坐标(也可以最后根据level去计算)
+                var destNode = findNode(tempNodes, node.id);
+                if (!destNode) {
+                    destNode = node;
+                    tempNodes.push(destNode);
+                }
+                var parentNode = findNode(data, node.parent_id);  // 需要使用原始节点
+                if (parentNode) {
+                    if (parentNode.childNodes) {
+                        parentNode.childNodes.push(destNode);
+                    } else {
+                        parentNode.childNodes = [destNode];
+                    }
+                    if (destNode.parentNodes) {
+                        destNode.parentNodes.push(parentNode);
+                    } else {
+                        destNode.parentNodes = [parentNode];
+                    }
+                    tempEdges.push({
+                        source: node.parent_id,  // 需要使用原始节点
+                        target: destNode.id,
+                        shape: 'polyline',
+                        // controlPoints: [{x:200, y:300}],
+                        style: {
+                            endArrow: true
+                        }
+                    });
+                }
+                delete destNode.parent_id;
+            }
+            return {
+                nodes: tempNodes,
+                edges: tempEdges
+            };
+        }
+        var destData = buildNodes(data);
+        // 假设坐标参照为level1的第一个元素
+        // 按level排序
+        destData.nodes.sort(function (a, b) {
+            return a.level > b.level;
+        });
+        console.log(destData);
+        // 一个子节点有多个父节点
+        // 一个父节点有多个子节点
+        // 父节点的x坐标受子节点x坐标影响
+        // 先确定每个level的节点数量(决定总宽度)
+        // 调整每个level节点的排序
+        // 重点是计算节点x坐标排序权重和间隔策略，预留线条空间
+        function sortChild(node) {
+            if (node.childNodes) {
+                for (var i = 0; i < node.childNodes.length; i++) {
+
+                }
+            }
+        }
+        function buildLevelWeight(nodes){
+            var levelNodes = {};
+            for(var i = 0; i < nodes.length; i++){
+                var tmpNode = nodes[i];
+                if(!levelNodes[tmpNode.level]){
+                    levelNodes[tmpNode.level] = [tmpNode];
+                } else {
+                    levelNodes[tmpNode.level].push(tmpNode);
+                }
+                
+            }
+            
+            for(level in levelNodes){
+                var row = levelNodes[level];
+                var rowLeft = 0;
+                
+                for(var z = 0; z < row.length; z++){
+                    var node = row[z];
+                    node.weight = node.weight ? node.weight : z + 1;
+                    for(var y = 0; y < node.childNodes.length; y++){
+                        var cNode = node.childNodes[y];
+                        if(cNode.level > node.level){
+                            if(!cNode.weight){
+                                cNode.weight = node.weight * 10;
+                            } else {
+                                cNode.weight += node.weight;
+                            }
+                        }
+                    }
+                    // node.left = rowLeft;
+                    // rowLeft += node.space;
+                }
+                row.sort(function(a,b){
+                    return a.weight > b.weight;
+                });
+                for(var v = 0; v < row.length; v++){
+                    var node = row[v];
+                    node.left = rowLeft;
+                    rowLeft += (node.space || nodeWidth);
+                }
+            }
+        }
+        // 权重越小越靠左
+        // 是否为互为父子关系，是的话不修改权重
+
+        var levelCount = {};
+        var tempLevel = 1;
+        var tempWeight = 1;
+        for (var i = 0; i < destData.nodes.length; i++) {
+            var node = destData.nodes[i];
+            // 以level1的第一个为原点
+            if (i === 0) {
+                node.x = 100;
+            }
+            // 不同级的子元素排列
+            // 同级元素中的排序
+            if (!levelCount[node.level]) {
+                levelCount[node.level] = 1;
+            }
+            // node.weight += levelCount[node.level];
+            // 查找它的父节点和子及子节点，设置权重
+            if (!node.parentNodes) {
+                node.parentNodes = [];
+            }
+            if (!node.childNodes) {
+                node.childNodes = [];
+            }
+            node.weightP = 0;
+            for (var j = 0; j < node.parentNodes.length; j++) {
+                var pNode = node.parentNodes[j];
+                if(node.level < pNode.level){
+                    node.space += nodeWidth;
+                    // pNode.weight = pNode.weight * node.weight;
+                }
+                if(node.level > pNode.level){
+                    node.weightP++;
+                }
+            }
+            for (var k = 0; k < node.childNodes.length; k++) {
+                var cNode = node.childNodes[k];
+                if(node.level < cNode.level){
+                    node.space += nodeWidth;
+                    // cNode.weight = cNode.weight * node.weight; 
+                }
+                // cNode.highLevelParents
+
+            }
+        }
+        buildLevelWeight(destData.nodes);
+        for(var x = 0; x < destData.nodes.length; x++){
+            var tNode = destData.nodes[x];
+            tNode.x = tNode.left + (tNode.space || nodeWidth) / 2;
+        }
+        var graph = new G6.Graph({
+            container: 'mountNode',
+            width: 1000,
+            height: 600,
+            modes: {
+                default: ['drag-canvas', 'tooltip']
+            },
+            edgeStyle: {
+                default: {
+                    endArrow: true,
+                    lineWidth: 2,
+                    stroke: '#ccc'
+                }
+            }
+        });
+        graph.data(destData);
+        graph.render();
+
+        // 1. 找到元素最多的level，计算其宽度
+        // 2. 
+        // 步骤：
+        // 1. 确定最大宽度 : 找到元素最多的level, 计算其宽度
+        // 2. 从此level向上、向下分别计算宽度
+        // 3. 对每个level进行排序
+        // 4. 进行定位
+    </script>
+</body>
+
+</html>
